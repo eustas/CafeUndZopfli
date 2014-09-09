@@ -43,16 +43,6 @@ class Katajainen {
       return;
     }
 
-    int rnd = cookie.rnd;
-    for (int j = nn; j > 1;) {
-      rnd = 0x7FFFFFFF & (1103515245 * rnd + 12345);
-      int k = rnd % j--;
-      Node tmp = leaves[j];
-      leaves[j] = leaves[k];
-      leaves[k] = tmp;
-    }
-    cookie.rnd = rnd;
-
     Node[] leaves2 = cookie.leaves2;
     System.arraycopy(leaves, 0, leaves2, 0, nn);
     sort(leaves2, leaves, 0, nn);
