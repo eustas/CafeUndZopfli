@@ -16,33 +16,30 @@ limitations under the License.
 Author: eustas.ru@gmail.com (Eugene Klyuchnikov)
 */
 
-package ru.eustas.shanga;
+package ru.eustas.zopfli;
 
-public class Options {
-  public static enum BlockSplitting {
-    FIRST,
-    LAST,
-    NONE
+final class LzStore {
+  final char[] litLens;
+  final char[] dists;
+  int size;
+
+  LzStore(final int maxBlockSize) {
+    litLens = new char[maxBlockSize];
+    dists = new char[maxBlockSize];
   }
 
-  public static enum OutputFormat {
-    DEFLATE,
-    GZIP,
-    ZLIB
+  final void append(final char length, final char dist) {
+    litLens[size] = length;
+    dists[size++] = dist;
   }
 
-  public final int numIterations;
-  public final BlockSplitting blockSplitting;
-  public final OutputFormat outputType;
-
-  public Options(OutputFormat outputType, BlockSplitting blockSplitting,
-      int numIterations) {
-    this.outputType = outputType;
-    this.blockSplitting = blockSplitting;
-    this.numIterations = numIterations;
+  final void reset() {
+    size = 0;
   }
 
-  public Options() {
-    this(OutputFormat.GZIP, BlockSplitting.FIRST, 15);
+  final void copy(final LzStore source) {
+    size = source.size;
+    System.arraycopy(source.litLens, 0, litLens, 0, size);
+    System.arraycopy(source.dists, 0, dists, 0, size);
   }
 }

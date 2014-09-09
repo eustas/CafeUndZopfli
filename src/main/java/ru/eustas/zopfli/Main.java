@@ -16,7 +16,7 @@ limitations under the License.
 Author: eustas.ru@gmail.com (Eugene Klyuchnikov)
 */
 
-package ru.eustas.shanga;
+package ru.eustas.zopfli;
 
 import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
@@ -24,8 +24,8 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
-import ru.eustas.shanga.Options.BlockSplitting;
-import ru.eustas.shanga.Options.OutputFormat;
+import ru.eustas.zopfli.Options.BlockSplitting;
+import ru.eustas.zopfli.Options.OutputFormat;
 
 public class Main {
 
@@ -65,7 +65,7 @@ public class Main {
       System.err.println("Error: must have 1 or more iterations");
     }
 
-    Shanga compressor = new Shanga(8 * 1024 * 1024);
+    Zopfli compressor = new Zopfli(8 * 1024 * 1024);
     byte[] buffer = new byte[65536];
     Options options = new Options(outputType, blockSplitting, numIterations);
 
@@ -130,7 +130,7 @@ public class Main {
    * @param fileName Input file name.
    * @param outFileName Output file name; {@code null} to output to stdout.
    */
-  private static void compressFile(Shanga compressor, Options options,
+  private static void compressFile(Zopfli compressor, Options options,
       String fileName, String outFileName, byte[] buffer) {
     byte[] input = readFile(fileName, buffer);
     if (input == null) {
@@ -162,7 +162,7 @@ public class Main {
 
   private static void printHelp() {
     System.err.println(""
-        + "Usage: shanga [OPTION]... FILE\n"
+        + "Usage: zopfli [OPTION]... FILE\n"
         + "  -h    gives this help\n"
         + "  -c    write the result on standard output, instead of disk"
         + " filename + '.gz'\n"

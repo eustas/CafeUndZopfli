@@ -16,7 +16,7 @@ limitations under the License.
 Author: eustas.ru@gmail.com (Eugene Klyuchnikov)
 */
 
-package ru.eustas.shanga;
+package ru.eustas.zopfli;
 
 class Util {
 

@@ -16,7 +16,7 @@ limitations under the License.
 Author: eustas.ru@gmail.com (Eugene Klyuchnikov)
 */
 
-package ru.eustas.shanga;
+package ru.eustas.zopfli;
 
 final class SymbolStats {
   private final static double INV_LOG_2 = 1.4426950408889 * 0x10000L; /* 1.0 / log(2.0) */

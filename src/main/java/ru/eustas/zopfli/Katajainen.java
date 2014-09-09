@@ -16,9 +16,9 @@ limitations under the License.
 Author: eustas.ru@gmail.com (Eugene Klyuchnikov)
 */
 
-package ru.eustas.shanga;
+package ru.eustas.zopfli;
 
-import ru.eustas.shanga.Cookie.Node;
+import ru.eustas.zopfli.Cookie.Node;
 
 class Katajainen {
 

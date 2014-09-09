@@ -16,9 +16,9 @@ limitations under the License.
 Author: eustas.ru@gmail.com (Eugene Klyuchnikov)
 */
 
-package ru.eustas.shanga;
+package ru.eustas.zopfli;
 
-public class Shanga {
+public class Zopfli {
 
   private static class Crc {
 
@@ -138,7 +138,7 @@ public class Shanga {
     output.append((byte) ((size >> 24) & 0xFF));
   }
 
-  public Shanga(int masterBlockSize) {
+  public Zopfli(int masterBlockSize) {
     cookie = new Cookie(masterBlockSize);
   }
 }
