@@ -631,12 +631,12 @@ class Deflate {
     clCl[18] += 7;
 
     int[] order = Util.ORDER;
-    int hcLen = 18;
-    while (hcLen > 3 && clCounts[order[hcLen]] == 0) {
+    int hcLen = 15;
+    while (hcLen > 0 && clCounts[order[hcLen + 3]] == 0) {
       hcLen--;
     }
 
-    int result = 26 + hcLen * 3;
+    int result = 5 + 5 + 4 + (hcLen + 4) * 3;
     for (int i = 0; i < 19; i++) {
       result += clCl[i] * clCounts[i];
     }
