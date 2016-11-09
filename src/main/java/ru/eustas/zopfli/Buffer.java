@@ -28,6 +28,14 @@ public class Buffer {
     data = new byte[65536];
   }
 
+  public byte[] getData() {
+    return data;
+  }
+
+  public int getSize() {
+    return size;
+  }
+
   void append(byte value) {
     if (size == data.length) {
       byte[] copy = new byte[size * 2];
