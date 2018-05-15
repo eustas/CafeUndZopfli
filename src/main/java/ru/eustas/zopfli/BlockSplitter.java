@@ -1,5 +1,4 @@
-/*
-Copyright 2014 Google Inc. All Rights Reserved.
+/* Copyright 2014 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,6 +18,9 @@ Author: eustas.ru@gmail.com (Eugene Klyuchnikov)
 package ru.eustas.zopfli;
 
 class BlockSplitter {
+
+  /* Collection of utilities / should not be instantiated. */
+  BlockSplitter() {}
 
   static int split(Cookie cookie, byte[] input, int from, int to) {
     LzStore store = cookie.store1;
@@ -42,7 +44,7 @@ class BlockSplitter {
     return nPoints;
   }
 
-  // TODO: May be use some kind of SORTED data-structure for splitPoints?
+  // TODO(user): May be use some kind of SORTED data-structure for splitPoints?
   static int splitLz(Cookie cookie, char[] litLens, char[] dists, int llSize) {
     int[] splitPoints = cookie.splitPoints;
     int[] splitSize = cookie.splitSize;

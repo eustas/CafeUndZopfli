@@ -1,5 +1,4 @@
-/*
-Copyright 2014 Google Inc. All Rights Reserved.
+/* Copyright 2014 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,11 +17,19 @@ Author: eustas.ru@gmail.com (Eugene Klyuchnikov)
 
 package ru.eustas.zopfli;
 
+import java.io.OutputStream;
+
+/**
+ * Zopfli compression and output framing facade.
+ */
 public class Zopfli {
 
-  private static class Crc {
+  static class Crc {
 
-    private final static int[] table = makeTable();
+    /* Collection of utilities / should not be instantiated. */
+    Crc() {}
+
+    private static final int[] table = makeTable();
 
     private static int[] makeTable() {
       int[] result = new int[256];
@@ -42,7 +49,7 @@ public class Zopfli {
       return result;
     }
 
-    public static int calculate(byte[] input) {
+    static int calculate(byte[] input) {
       int c = ~0;
       for (int i = 0, n = input.length; i < n; ++i) {
         c = table[(c ^ input[i]) & 0xFF] ^ (c >>> 8);
@@ -53,24 +60,23 @@ public class Zopfli {
 
   private final Cookie cookie;
 
-  public synchronized Buffer compress(Options options, byte[] input) {
-    Buffer output = new Buffer();
+  public synchronized void compress(Options options, byte[] input, OutputStream output) {
+    BitWriter bitWriter = new BitWriter(output);
     switch (options.outputType) {
       case GZIP:
-        compressGzip(options, input, output);
+        compressGzip(options, input, bitWriter);
         break;
 
       case ZLIB:
-        compressZlib(options, input, output);
+        compressZlib(options, input, bitWriter);
         break;
+
       case DEFLATE:
-        Deflate.compress(cookie, options, input, output);
+        Deflate.compress(cookie, options, input, bitWriter);
         break;
-      default:
-        throw new IllegalArgumentException(
-            "Unexpected output format: " + options.outputType);
     }
-    return output;
+    bitWriter.jumpToByteBoundary();
+    bitWriter.flush();
   }
 
   /**
@@ -93,49 +99,36 @@ public class Zopfli {
     return (s2 << 16) | s1;
   }
 
-
-  private void compressZlib(Options options, byte[] input,
-      Buffer output) {
-    output.append((byte) 0x78);
-    output.append((byte) 0x1E);
+  private void compressZlib(Options options, byte[] input, BitWriter output) {
+    output.addBits(0x1E78, 16);
 
     Deflate.compress(cookie, options, input, output);
+    output.jumpToByteBoundary();
 
     int checksum = adler32(input);
-    output.append((byte) ((checksum >> 24) & 0xFF));
-    output.append((byte) ((checksum >> 16) & 0xFF));
-    output.append((byte) ((checksum >> 8) & 0xFF));
-    output.append((byte) (checksum & 0xFF));
+    output.addBits((checksum >> 24) & 0xFF, 8);
+    output.addBits((checksum >> 16) & 0xFF, 8);
+    output.addBits((checksum >> 8) & 0xFF, 8);
+    output.addBits(checksum & 0xFF, 8);
   }
 
-  private void compressGzip(Options options, byte[] input,
-      Buffer output) {
-    output.append((byte) 31);
-    output.append((byte) 139);
-    output.append((byte) 8);
-    output.append((byte) 0);
-
-    output.append((byte) 0);
-    output.append((byte) 0);
-    output.append((byte) 0);
-    output.append((byte) 0);
-
-    output.append((byte) 2);
-    output.append((byte) 3);
+  private void compressGzip(Options options, byte[] input, BitWriter output) {
+    output.addBits(0x8B1F, 16);
+    output.addBits(0x0008, 16);
+    output.addBits(0x0000, 16);
+    output.addBits(0x0000, 16);
+    output.addBits(0x0302, 16);
 
     Deflate.compress(cookie, options, input, output);
+    output.jumpToByteBoundary();
 
     int crc = Crc.calculate(input);
-    output.append((byte) (crc & 0xFF));
-    output.append((byte) ((crc >> 8) & 0xFF));
-    output.append((byte) ((crc >> 16) & 0xFF));
-    output.append((byte) ((crc >> 24) & 0xFF));
+    output.addBits(crc & 0xFFFF, 16);
+    output.addBits((crc >> 16) & 0xFFFF, 16);
 
     int size = input.length;
-    output.append((byte) (size & 0xFF));
-    output.append((byte) ((size >> 8) & 0xFF));
-    output.append((byte) ((size >> 16) & 0xFF));
-    output.append((byte) ((size >> 24) & 0xFF));
+    output.addBits(size & 0xFFFF, 16);
+    output.addBits((size >> 16) & 0xFFFF, 16);
   }
 
   public Zopfli(int masterBlockSize) {

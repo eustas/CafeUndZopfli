@@ -1,5 +1,4 @@
-/*
-Copyright 2014 Google Inc. All Rights Reserved.
+/* Copyright 2014 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,6 +20,9 @@ package ru.eustas.zopfli;
 import ru.eustas.zopfli.Cookie.Node;
 
 class Katajainen {
+
+  /* Collection of utilities / should not be instantiated. */
+  Katajainen() {}
 
   static void lengthLimitedCodeLengths(Cookie cookie, int[] frequencies, int maxBits,
       int[] bitLengths) {
@@ -71,8 +73,8 @@ class Katajainen {
     }
   }
 
-  private static void boundaryPm(Cookie cookie, Node[] leaves, Node[] list0, Node[] list1, int numSymbols, int index,
-      boolean last) {
+  private static void boundaryPm(Cookie cookie, Node[] leaves, Node[] list0, Node[] list1,
+      int numSymbols, int index, boolean last) {
     int lastCount = list1[index].count;
 
     if (index == 0 && lastCount >= numSymbols) {
@@ -101,12 +103,13 @@ class Katajainen {
     int length = high - low;
 
     if (length < 7) {
-      for (int i = low + 1; i < high; i++)
+      for (int i = low + 1; i < high; i++) {
         for (int j = i, k = i - 1; j > low && (dest[k].weight > dest[j].weight); --j, --k) {
           Node t = dest[j];
           dest[j] = dest[k];
           dest[k] = t;
         }
+      }
       return;
     }
 
@@ -115,10 +118,11 @@ class Katajainen {
     sort(dest, src, mid, high);
 
     for (int i = low, p = low, q = mid; i < high; i++) {
-      if (q >= high || p < mid && (src[p].weight <= src[q].weight))
+      if (q >= high || (p < mid && (src[p].weight <= src[q].weight))) {
         dest[i] = src[p++];
-      else
+      } else {
         dest[i] = src[q++];
+      }
     }
   }
 }

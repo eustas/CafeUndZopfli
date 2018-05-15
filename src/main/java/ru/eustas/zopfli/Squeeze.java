@@ -1,5 +1,4 @@
-/*
-Copyright 2014 Google Inc. All Rights Reserved.
+/* Copyright 2014 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,7 +19,11 @@ package ru.eustas.zopfli;
 
 class Squeeze {
 
-  static LzStore optimal(Cookie cookie, int numIterations, LongestMatchCache lmc, byte[] input, int from, int to) {
+  /* Collection of utilities / should not be instantiated. */
+  Squeeze() {}
+
+  static LzStore optimal(Cookie cookie, int numIterations, LongestMatchCache lmc, byte[] input,
+      int from, int to) {
     LzStore currentStore = cookie.store1;
     currentStore.reset();
     LzStore store = cookie.store2;
@@ -42,7 +45,8 @@ class Squeeze {
       currentStore.reset();
       bestLengths(cookie, lmc, from, input, from, to, stats.minCost(), stats, lengthArray, costs);
       optimalRun(cookie, lmc, input, from, to, lengthArray, currentStore);
-      cost = Deflate.calculateBlockSize(cookie, currentStore.litLens, currentStore.dists, 0, currentStore.size);
+      cost = Deflate.calculateBlockSize(cookie, currentStore.litLens,
+          currentStore.dists, 0, currentStore.size);
       if (cost < bestCost) {
         store.copy(currentStore);
         bestStats.copy(stats);
@@ -107,8 +111,10 @@ class Squeeze {
       }
       return 9;
     } else {
-      long cost = 12 + (dist < 4097 ? Util.CACHED_DIST_EXTRA_BITS[dist] : dist < 16385 ? dist < 8193 ? 11 : 12 : 13)
-          + Util.LENGTH_EXTRA_BITS[litLen];
+      long distCost = (dist < 4097)
+          ? Util.CACHED_DIST_EXTRA_BITS[dist]
+          : (dist < 16385 ? dist < 8193 ? 11 : 12 : 13);
+      long cost = 12 + distCost + Util.LENGTH_EXTRA_BITS[litLen];
       if (Util.LENGTH_SYMBOL[litLen] > 279) {
         return cost + 1;
       }
@@ -116,8 +122,9 @@ class Squeeze {
     }
   }
 
-  private static void bestLengths(Cookie cookie, LongestMatchCache lmc, int blockStart, byte[] input, int from, int to,
-      long minCost, SymbolStats stats, char[] lengthArray, long[] costs) {
+  private static void bestLengths(Cookie cookie, LongestMatchCache lmc, int blockStart,
+      byte[] input, int from, int to, long minCost, SymbolStats stats,
+      char[] lengthArray, long[] costs) {
     //# WINDOW_SIZE = 0x8000
     //# WINDOW_MASK = 0x7FFF
     //# MAX_MATCH = 258
@@ -145,7 +152,8 @@ class Squeeze {
     while (i < to) {
       h.updateHash(input, i, to);
 
-      if (same[i & 0x7FFF] > 516 && i > from + 259 && i + 517 < to && same[(i - 258) & 0x7FFF] > 258) {
+      if (same[i & 0x7FFF] > 516 && i > from + 259 && i + 517 < to
+          && same[(i - 258) & 0x7FFF] > 258) {
         for (int k = 0; k < 258; ++k) {
           costs[j + 258] = costs[j] + stepCost;
           lengthArray[j + 258] = 258;

@@ -1,5 +1,4 @@
-/*
-Copyright 2014 Google Inc. All Rights Reserved.
+/* Copyright 2014 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -29,12 +28,12 @@ class Cookie {
   static final int SPLIT_PARTITIONS = 9;
   private static final int POOL_MAX = 10240;
 
-  final static int[] intZeroes = new int[65536];
-  final static char[] charZeroes = new char[65536];
-  final static byte[] byteZeroes = new byte[65536];
-  final static int[] intMOnes = new int[65536];
-  final static char[] charOnes = new char[65536];
-  final static long[] costMax = new long[65536];
+  static final int[] intZeroes = new int[65536];
+  static final char[] charZeroes = new char[65536];
+  static final byte[] byteZeroes = new byte[65536];
+  static final int[] intMOnes = new int[65536];
+  static final char[] charOnes = new char[65536];
+  private static final long[] costMax = new long[65536];
 
   static {
     for (int i = 0; i < 64; ++i) {
@@ -47,7 +46,7 @@ class Cookie {
     expand(costMax);
   }
 
-  static void expand(Object array) {
+  private static void expand(Object array) {
     for (int i = 64; i < 65536; i = i + i) {
       System.arraycopy(array, 0, array, i, i);
     }
@@ -59,16 +58,6 @@ class Cookie {
   final Node[] leaves2 = new Node[288];
   private final Node[] nodes = new Node[POOL_MAX];
   private int nextNode;
-
-  //final Node[] leaves2 = new Node[288];
-
-  /*private final static Comparator<Node> wc = new Comparator<Node>() {
-    @Override
-    public int compare(Node node, Node node2) {
-      int r = node.weight - node2.weight;
-      return r == 0 ? node.count - node2.count : r;
-    }
-  };*/
 
   final int[] i320a = new int[320];
   final int[] i320b = new int[320];
@@ -126,18 +115,6 @@ class Cookie {
 
   final void resetPool() {
     nextNode = 0;
-  }
-
-  static void fill0(int[] array, int length) {
-    int i = 0;
-    while (i < length) {
-      int j = i + 65536;
-      if (j > length) {
-        j = length;
-      }
-      System.arraycopy(intZeroes, 0, array, i, j - i);
-      i = j;
-    }
   }
 
   static void fill0(char[] array, int length) {

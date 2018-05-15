@@ -1,5 +1,4 @@
-/*
-Copyright 2014 Google Inc. All Rights Reserved.
+/* Copyright 2014 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,7 +19,7 @@ package ru.eustas.zopfli;
 
 class LongestMatchCache {
 
-  private final static int CACHE_LENGTH = 8;
+  private static final int CACHE_LENGTH = 8;
 
   public final char[] length;
   public final char[] dist;

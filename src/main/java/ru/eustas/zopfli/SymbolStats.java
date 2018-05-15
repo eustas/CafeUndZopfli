@@ -1,5 +1,4 @@
-/*
-Copyright 2014 Google Inc. All Rights Reserved.
+/* Copyright 2014 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,7 +18,7 @@ Author: eustas.ru@gmail.com (Eugene Klyuchnikov)
 package ru.eustas.zopfli;
 
 final class SymbolStats {
-  private final static double INV_LOG_2 = 1.4426950408889 * 0x10000L; /* 1.0 / log(2.0) */
+  private static final double INV_LOG_2 = 1.4426950408889 * 0x10000L; /* 1.0 / log(2.0) */
   private final int[] litLens = new int[288];
   private final int[] dists = new int[32]; // Why 32? Expect 30.
   final long[] lLiterals = new long[288];
@@ -64,7 +63,7 @@ final class SymbolStats {
     calculateDists();
   }
 
-  final void calculateLens() {
+  private void calculateLens() {
     int sum = 0;
     int[] litLens = this.litLens;
     for (int i = 0; i < 288; ++i) {
@@ -74,9 +73,9 @@ final class SymbolStats {
     long[] lLiterals = this.lLiterals;
     for (int i = 0; i < 288; ++i) {
       if (litLens[i] == 0) {
-        lLiterals[i] = (long)log2sum;
+        lLiterals[i] = (long) log2sum;
       } else {
-        lLiterals[i] = (long)(log2sum - Math.log(litLens[i]) * INV_LOG_2);
+        lLiterals[i] = (long) (log2sum - Math.log(litLens[i]) * INV_LOG_2);
       }
       if (lLiterals[i] < 0) {
         lLiterals[i] = 0;
@@ -90,7 +89,7 @@ final class SymbolStats {
     }
   }
 
-  final void calculateDists() {
+  private void calculateDists() {
     int sum = 0;
     int[] dists = this.dists;
     for (int i = 0; i < 32; ++i) {
@@ -100,9 +99,9 @@ final class SymbolStats {
     long[] dSymbols = this.dSymbols;
     for (int i = 0; i < 32; ++i) {
       if (dists[i] == 0) {
-        dSymbols[i] = (long)log2sum;
+        dSymbols[i] = (long) log2sum;
       } else {
-        dSymbols[i] = (long)(log2sum - Math.log(dists[i]) * INV_LOG_2);
+        dSymbols[i] = (long) (log2sum - Math.log(dists[i]) * INV_LOG_2);
       }
       if (dSymbols[i] < 0) {
         dSymbols[i] = 0;
@@ -114,15 +113,13 @@ final class SymbolStats {
   }
 
   final void alloy(final SymbolStats ligand) {
-    int[] ligandLitLens = ligand.litLens;
     for (int i = 0; i < 288; i++) {
-      litLens[i] += ligandLitLens[i] / 2;
+      litLens[i] += ligand.litLens[i] / 2;
     }
     litLens[256] = 1;
 
-    int[] ligandDists = ligand.dists;
     for (int i = 0; i < 32; i++) {
-      dists[i] += ligandDists[i] / 2;
+      dists[i] += ligand.dists[i] / 2;
     }
   }
 

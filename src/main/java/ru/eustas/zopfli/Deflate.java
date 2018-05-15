@@ -1,5 +1,4 @@
-/*
-Copyright 2014 Google Inc. All Rights Reserved.
+/* Copyright 2014 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,10 +19,19 @@ package ru.eustas.zopfli;
 
 class Deflate {
 
-  static enum BlockType {
+  /* Collection of utilities / should not be instantiated. */
+  Deflate() {}
+
+  enum BlockType {
     DYNAMIC,
     FIXED
   }
+
+  /* Bit-reversed 5-bit numbers. */
+  private static final int[] RESVERSED_BITS = {
+    0, 16, 8, 24, 4, 20, 12, 28, 2, 18, 10, 26, 6, 22, 14, 30,
+    1, 17, 9, 25, 5, 21, 13, 29, 3, 19, 11, 27, 7, 23, 15, 31
+  };
 
   // final static int WINDOW_SIZE = 0x8000;
   // final static int WINDOW_MASK = 0x7FFF;
@@ -49,7 +57,16 @@ class Deflate {
     }
   }
 
-  public static void greedy(Cookie cookie, LongestMatchCache lmc, byte[] input, int from, int to, LzStore store) {
+  private static int bitReverse(int value, int length) {
+    int low = RESVERSED_BITS[value & 0x1F];
+    int mid = RESVERSED_BITS[(value >> 5) & 0x1F];
+    int hi = RESVERSED_BITS[(value >> 10) & 0x1F];
+    int reversed = (low << 10) | (mid << 5) | hi;
+    return (length == 15) ? reversed : (reversed >> (15 - length));
+  }
+
+  public static void greedy(Cookie cookie, LongestMatchCache lmc, byte[] input, int from,
+      int to, LzStore store) {
     Hash h = cookie.h;
     h.init(input, Math.max(from - 0x8000, 0), from, to);
     int prevLength = 0;
@@ -103,8 +120,8 @@ class Deflate {
     }
   }
 
-  static void findLongestMatch(Cookie cookie, LongestMatchCache lmc, int blockStart, Hash h, byte[] array,
-      int pos, int size, int limit, char[] subLen) {
+  static void findLongestMatch(Cookie cookie, LongestMatchCache lmc, int blockStart, Hash h,
+      byte[] array, int pos, int size, int limit, char[] subLen) {
     //# WINDOW_SIZE = 0x8000
     //# WINDOW_MASK = 0x7FFF
     //# MIN_MATCH = 3
@@ -112,9 +129,11 @@ class Deflate {
 
     int offset = pos - blockStart;
     char[] lmcLength = lmc != null ? lmc.length : null;
-    if (lmc != null && ((lmcLength[offset] == 0 || lmc.dist[offset] != 0))
-        && (limit == 258 || lmcLength[offset] <= limit
-        || subLen != null && lmc.maxCachedSubLen(offset) >= limit)) {
+    if (lmc != null
+        && ((lmcLength[offset] == 0 || lmc.dist[offset] != 0))
+        && (limit == 258
+          || lmcLength[offset] <= limit
+          || (subLen != null && lmc.maxCachedSubLen(offset) >= limit))) {
       if (subLen == null || lmcLength[offset] <= lmc.maxCachedSubLen(offset)) {
         cookie.lenVal = lmcLength[offset];
         if (cookie.lenVal > limit) {
@@ -205,13 +224,14 @@ class Deflate {
       --chainCounter;
     }
 
-    if (lmc != null && limit == 258 && subLen != null && lmcLength[offset] != 0 && lmc.dist[offset] == 0) {
+    if (lmc != null && limit == 258 && subLen != null
+        && lmcLength[offset] != 0 && lmc.dist[offset] == 0) {
       if (bestLength < 3) {
         lmc.dist[offset] = 0;
         lmcLength[offset] = 0;
       } else {
-        lmc.dist[offset] = (char)bestDist;
-        lmcLength[offset] = (char)bestLength;
+        lmc.dist[offset] = (char) bestDist;
+        lmcLength[offset] = (char) bestLength;
       }
       lmc.subLenToCache(subLen, offset, bestLength);
     }
@@ -220,8 +240,8 @@ class Deflate {
     cookie.lenVal = bestLength;
   }
 
-  private static void deflatePart(Cookie cookie, Options options, byte[] input, int from, int to, boolean flush,
-      Buffer output) {
+  private static void deflatePart(Cookie cookie, Options options, byte[] input, int from, int to,
+      boolean flush, BitWriter output) {
     // assert from != to
     switch (options.blockSplitting) {
       case FIRST:
@@ -238,8 +258,8 @@ class Deflate {
     }
   }
 
-  private static void deflateDynamicBlock(Cookie cookie, Options options, boolean flush, byte[] input,
-      int from, int to, Buffer output) {
+  private static void deflateDynamicBlock(Cookie cookie, Options options, boolean flush,
+      byte[] input, int from, int to, BitWriter output) {
     // assert from != to
     LongestMatchCache lmc = cookie.lmc;
     lmc.init(to - from);
@@ -265,7 +285,7 @@ class Deflate {
   }
 
   private static void deflateSplittingLast(Cookie cookie, Options options, boolean flush,
-      byte[] input, int from, int to, Buffer output) {
+      byte[] input, int from, int to, BitWriter output) {
     // assert from != to
     LongestMatchCache lmc = cookie.lmc;
     lmc.init(to - from);
@@ -278,17 +298,19 @@ class Deflate {
     for (int i = 1; i <= nPoints; i++) {
       int start = splitPoints[i - 1];
       int end = splitPoints[i];
-      addLzBlock(cookie, BlockType.DYNAMIC, i == nPoints && flush, store.litLens, store.dists, start, end, output);
+      addLzBlock(cookie, BlockType.DYNAMIC, i == nPoints && flush, store.litLens,
+          store.dists, start, end, output);
     }
   }
 
   private static void deflateSplittingFirst(Cookie cookie, Options options, boolean flush,
-      byte[] input, int from, int to, Buffer output) {
+      byte[] input, int from, int to, BitWriter output) {
     // assert from != to
     int nPoints = BlockSplitter.split(cookie, input, from, to);
     int[] splitPoints = cookie.splitPoints;
     for (int i = 1; i <= nPoints; ++i) {
-      deflateDynamicBlock(cookie, options, i == nPoints && flush, input, splitPoints[i - 1], splitPoints[i], output);
+      deflateDynamicBlock(cookie, options, i == nPoints && flush, input,
+          splitPoints[i - 1], splitPoints[i], output);
     }
   }
 
@@ -348,7 +370,8 @@ class Deflate {
     return result;
   }
 
-  private static int calculateFixedBlockSize(Cookie cookie, char[] litLens, char[] dists, int size) {
+  private static int calculateFixedBlockSize(Cookie cookie, char[] litLens, char[] dists,
+      int size) {
     int[] llLengths = cookie.i288a;
     int[] dLengths = cookie.i32a;
     getFixedTree(llLengths, dLengths);
@@ -376,7 +399,8 @@ class Deflate {
     return result;
   }
 
-  private static void lzCounts(char[] litLens, char[] dists, int start, int end, int[] llCount, int[] dCount) {
+  private static void lzCounts(char[] litLens, char[] dists, int start, int end, int[] llCount,
+      int[] dCount) {
     int[] lengthSymbol = Util.LENGTH_SYMBOL;
     int[] cachedDistSymbol = Util.CACHED_DIST_SYMBOL;
     for (int i = start; i < end; i++) {
@@ -393,7 +417,13 @@ class Deflate {
     llCount[256] = 1;
   }
 
-  static void compress(Cookie cookie, Options options, byte[] input, Buffer output) {
+  static void compress(Cookie cookie, Options options, byte[] input, BitWriter output) {
+    if (input.length == 0) {
+      output.addBits(1, 1);  /* BFINAL = true */
+      output.addBits(1, 2);  /* BTYPE = fixed */
+      output.addBits(0, 7);  /* 256 == end-of-block */
+      return;
+    }
     int i = 0;
     while (i < input.length) {
       int j = Math.min(i + cookie.masterBlockSize, input.length);
@@ -421,23 +451,26 @@ class Deflate {
     }
   }
 
-  private static void addDynamicTree(Cookie cookie, int[] llLengths, int[] dLengths, Buffer output) {
+  private static void addDynamicTree(Cookie cookie, int[] llLengths, int[] dLengths,
+      BitWriter output) {
     int best = 0;
     int bestSize = Integer.MAX_VALUE;
 
-    for(int i = 0; i < 8; i++) {
-      int size = simulateEncodeTree(cookie, llLengths, dLengths, (i & 1) != 0, (i & 2) != 0, (i & 4) != 0);
+    for (int i = 0; i < 8; i++) {
+      int size = simulateEncodeTree(cookie, llLengths, dLengths, (i & 1) != 0,
+          (i & 2) != 0, (i & 4) != 0);
       if (size < bestSize) {
         bestSize = size;
         best = i;
       }
     }
 
-    encodeTree(cookie, llLengths, dLengths, (best & 1) != 0, (best & 2) != 0, (best & 4) != 0, output);
+    encodeTree(cookie, llLengths, dLengths, (best & 1) != 0,
+        (best & 2) != 0, (best & 4) != 0, output);
   }
 
   private static void encodeTree(Cookie cookie, int[] llLengths, int[] dLengths,
-      boolean use16, boolean use17, boolean use18, Buffer output) {
+      boolean use16, boolean use17, boolean use18, BitWriter output) {
     int hLit = 29;
     int hDist = 29;
 
@@ -533,13 +566,19 @@ class Deflate {
 
     for (int i = 0; i < rleSize; i++) {
       int symbol = clSymbols[rle[i]];
-      output.addHuffmanBits(symbol, clCl[rle[i]]);
-      if (rle[i] == 16) {
-        output.addBits(rleBits[i], 2);
-      } else if (rle[i] == 17) {
-        output.addBits(rleBits[i], 3);
-      } else if (rle[i] == 18) {
-        output.addBits(rleBits[i], 7);
+      output.addBits(symbol, clCl[rle[i]]);
+      switch (rle[i]) {
+        case 16:
+          output.addBits(rleBits[i], 2);
+          break;
+        case 17:
+          output.addBits(rleBits[i], 3);
+          break;
+        case 18:
+          output.addBits(rleBits[i], 7);
+          break;
+        default:
+          break;
       }
     }
   }
@@ -547,8 +586,9 @@ class Deflate {
   private static int simulateAddDynamicTree(Cookie cookie, int[] llLengths, int[] dLengths) {
     int bestSize = Integer.MAX_VALUE;
 
-    for(int i = 0; i < 8; i++) {
-      int size = simulateEncodeTree(cookie, llLengths, dLengths, (i & 1) != 0, (i & 2) != 0, (i & 4) != 0);
+    for (int i = 0; i < 8; i++) {
+      int size = simulateEncodeTree(cookie, llLengths, dLengths, (i & 1) != 0,
+          (i & 2) != 0, (i & 4) != 0);
       if (size < bestSize) {
         bestSize = size;
       }
@@ -644,8 +684,8 @@ class Deflate {
     return result;
   }
 
-  private static void addLzBlock(Cookie cookie, BlockType type, boolean last, char[] litLens, char[] dists,
-      int lStart, int lEnd, Buffer output) {
+  private static void addLzBlock(Cookie cookie, BlockType type, boolean last, char[] litLens,
+      char[] dists, int lStart, int lEnd, BitWriter output) {
     int[] llLengths = cookie.i288a;
     System.arraycopy(Cookie.intZeroes, 0, llLengths, 0, 288);
     int[] dLengths = cookie.i32a;
@@ -655,11 +695,11 @@ class Deflate {
     int[] dCounts = cookie.i32b;
     System.arraycopy(Cookie.intZeroes, 0, dCounts, 0, 32);
 
-    output.addHuffmanBits(last ? 1 : 0, 1);
+    output.addBits(last ? 1 : 0, 1);
     if (type == BlockType.FIXED) {
-      output.addHuffmanBits(2, 2); // 1, 0
+      output.addBits(1, 2); // 01
     } else { // DYNAMIC
-      output.addHuffmanBits(1, 2); // 0, 1
+      output.addBits(2, 2); // 10
     }
 
     if (type == BlockType.FIXED) {
@@ -683,11 +723,11 @@ class Deflate {
     lengthsToSymbols(dLengths, 32, 15, dSymbols, cookie.i16a, cookie.i16b);
 
     addLzData(litLens, dists, lStart, lEnd, llSymbols, llLengths, dSymbols, dLengths, output);
-    output.addHuffmanBits(llSymbols[256], llLengths[256]);
+    output.addBits(llSymbols[256], llLengths[256]);
   }
 
   private static void addLzData(char[] litLens, char[] dists, int lStart, int lEnd,
-      int[] llSymbols, int[] llLengths, int[] dSymbols, int[] dLengths, Buffer output) {
+      int[] llSymbols, int[] llLengths, int[] dSymbols, int[] dLengths, BitWriter output) {
     int[] cachedDistExtraBits = Util.CACHED_DIST_EXTRA_BITS;
     int[] lengthExtraBits = Util.LENGTH_EXTRA_BITS;
     int[] lengthExtraBitsValue = Util.LENGTH_EXTRA_BITS_VALUE;
@@ -697,20 +737,21 @@ class Deflate {
       int dist = dists[i];
       int litLen = litLens[i];
       if (dist == 0) {
-        output.addHuffmanBits(llSymbols[litLen], llLengths[litLen]);
+        output.addBits(llSymbols[litLen], llLengths[litLen]);
       } else {
         int lls = lengthSymbol[litLen];
         int ds = cachedDistSymbol[dist];
-        output.addHuffmanBits(llSymbols[lls], llLengths[lls]);
+        output.addBits(llSymbols[lls], llLengths[lls]);
         output.addBits(lengthExtraBitsValue[litLen], lengthExtraBits[litLen]);
-        output.addHuffmanBits(dSymbols[ds], dLengths[ds]);
+        output.addBits(dSymbols[ds], dLengths[ds]);
         output.addBits(Util.distExtraBitsValue(dist),
             dist < 4097 ? cachedDistExtraBits[dist] : dist < 16385 ? dist < 8193 ? 11 : 12 : 13);
       }
     }
   }
 
-  private static void lengthsToSymbols(int[] lengths, int n, int maxBits, int[] symbols, int[] blCount, int[] nextCode) {
+  private static void lengthsToSymbols(int[] lengths, int n, int maxBits, int[] symbols,
+      int[] blCount, int[] nextCode) {
     System.arraycopy(Cookie.intZeroes, 0, blCount, 0, maxBits + 1);
     System.arraycopy(Cookie.intZeroes, 0, nextCode, 0, maxBits + 1);
     for (int i = 0; i < n; ++i) {
@@ -725,7 +766,7 @@ class Deflate {
     for (int i = 0; i < n; i++) {
       int len = lengths[i];
       if (len != 0) {
-        symbols[i] = nextCode[len];
+        symbols[i] = bitReverse(nextCode[len], len);
         nextCode[len]++;
       }
     }
@@ -766,10 +807,13 @@ class Deflate {
     int limit = counts[0];
     int sum = 0;
     for (int i = 0; i < length + 1; ++i) {
-      if ((i == length) || (goodForRle[i] != 0) || (counts[i] - limit >= 4) || (limit - counts[i] >= 4)) {
+      if ((i == length) || (goodForRle[i] != 0)
+          || (counts[i] - limit >= 4) || (limit - counts[i] >= 4)) {
         if ((stride >= 4) || ((stride >= 3) && (sum == 0))) {
           int count = (sum + stride / 2) / stride;
-          if (count < 1) count = 1;
+          if (count < 1) {
+            count = 1;
+          }
           if (sum == 0) {
             count = 0;
           }

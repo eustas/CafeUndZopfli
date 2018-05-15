@@ -1,5 +1,4 @@
-/*
-Copyright 2014 Google Inc. All Rights Reserved.
+/* Copyright 2014 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -42,8 +41,7 @@ class Hash {
   final int[] prev2 = new int[0x8000];
   final int[] hashVal2 = new int[0x8000];
 
-  public Hash() {
-  }
+  Hash() {}
 
   public void init(byte[] input, int windowStart, int from, int to) {
     int[] hashVal = this.hashVal;
@@ -56,14 +54,18 @@ class Hash {
 
     System.arraycopy(Cookie.intMOnes, 0, head, 0, 0x10000);
     System.arraycopy(Cookie.intMOnes, 0, hashVal, 0, 0x8000);
-    System.arraycopy(Cookie.intZeroes, 0, same, 0x8000, 0);
+    System.arraycopy(Cookie.intZeroes, 0, same, 0, 0x8000);
     System.arraycopy(seq, 0, prev, 0, 0x8000);
 
     System.arraycopy(Cookie.intMOnes, 0, head2, 0, 0x10000);
     System.arraycopy(Cookie.intMOnes, 0, hashVal2, 0, 0x8000);
     System.arraycopy(seq, 0, prev2, 0, 0x8000);
 
-    int val = (((input[windowStart] & 0xFF) << 5) ^ input[windowStart + 1] & 0xFF) & 0x7FFF;
+    if ((windowStart + 1 >= input.length) || (from + 1 >= input.length)) {
+      return;
+    }
+
+    int val = (((input[windowStart] & 0xFF) << 5) ^ (input[windowStart + 1] & 0xFF)) & 0x7FFF;
 
     for (int i = windowStart; i < from; ++i) {
       int hPos = i & 0x7FFF;

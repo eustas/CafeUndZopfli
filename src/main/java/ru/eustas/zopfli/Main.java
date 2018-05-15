@@ -1,5 +1,4 @@
-/*
-Copyright 2014 Google Inc. All Rights Reserved.
+/* Copyright 2014 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,16 +17,20 @@ Author: eustas.ru@gmail.com (Eugene Klyuchnikov)
 
 package ru.eustas.zopfli;
 
+import ru.eustas.zopfli.Options.BlockSplitting;
+import ru.eustas.zopfli.Options.OutputFormat;
+
 import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 
-import ru.eustas.zopfli.Options.BlockSplitting;
-import ru.eustas.zopfli.Options.OutputFormat;
-
-public class Main {
+/**
+ * Zopfli compression command line interface.
+ */
+class Main {
 
   public static void main(String[] args) {
     OutputFormat outputType = OutputFormat.GZIP;
@@ -65,7 +68,7 @@ public class Main {
       System.err.println("Error: must have 1 or more iterations");
     }
 
-    Zopfli compressor = new Zopfli(8 * 1024 * 1024);
+    Zopfli compressor = new Zopfli(8 << 20);
     byte[] buffer = new byte[65536];
     Options options = new Options(outputType, blockSplitting, numIterations);
 
@@ -136,27 +139,29 @@ public class Main {
     if (input == null) {
       return;
     }
-    Buffer output = compressor.compress(options, input);
+    OutputStream output = null;
 
     if (outFileName != null) {
       try {
-        FileOutputStream outputStream = new FileOutputStream(outFileName);
-        try {
-          outputStream.write(output.data, 0, output.size);
-        } catch (IOException e) {
-          System.err.println("Can't write file: " + outFileName);
-        } finally {
-          try {
-            outputStream.close();
-          } catch (IOException e) {
-            // We don't care.
-          }
-        }
+        output = new FileOutputStream(outFileName);
       } catch (FileNotFoundException e) {
         System.err.println("Invalid output file: " + outFileName);
+        return;
       }
     } else {
-      System.out.write(output.data, 0, output.size);
+      output = System.out;
+    }
+
+    try {
+      compressor.compress(options, input, output);
+    } finally {
+      if (outFileName != null) {
+        try {
+          output.close();
+        } catch (IOException e) {
+           // We don't care.
+        }
+      }
     }
   }
 
