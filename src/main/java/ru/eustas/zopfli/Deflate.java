@@ -240,7 +240,7 @@ class Deflate {
     cookie.lenVal = bestLength;
   }
 
-  private static void deflatePart(Cookie cookie, Options options, byte[] input, int from, int to,
+  static void deflatePart(Cookie cookie, Options options, byte[] input, int from, int to,
       boolean flush, BitWriter output) {
     // assert from != to
     switch (options.blockSplitting) {
@@ -415,21 +415,6 @@ class Deflate {
     }
 
     llCount[256] = 1;
-  }
-
-  static void compress(Cookie cookie, Options options, byte[] input, BitWriter output) {
-    if (input.length == 0) {
-      output.addBits(1, 1);  /* BFINAL = true */
-      output.addBits(1, 2);  /* BTYPE = fixed */
-      output.addBits(0, 7);  /* 256 == end-of-block */
-      return;
-    }
-    int i = 0;
-    while (i < input.length) {
-      int j = Math.min(i + cookie.masterBlockSize, input.length);
-      deflatePart(cookie, options, input, i, j, j == input.length, output);
-      i = j;
-    }
   }
 
   private static void patchDistanceCodesForBuggyDecoders(int[] dLengths) {
