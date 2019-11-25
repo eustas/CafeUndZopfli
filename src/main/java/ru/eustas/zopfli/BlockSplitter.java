@@ -17,7 +17,7 @@ Author: eustas.ru@gmail.com (Eugene Klyuchnikov)
 
 package ru.eustas.zopfli;
 
-class BlockSplitter {
+final class BlockSplitter {
 
   /* Collection of utilities / should not be instantiated. */
   BlockSplitter() {}
@@ -44,7 +44,7 @@ class BlockSplitter {
     return nPoints;
   }
 
-  // TODO(user): May be use some kind of SORTED data-structure for splitPoints?
+  // TODO(eustas): May be use some kind of SORTED data-structure for splitPoints?
   static int splitLz(Cookie cookie, char[] litLens, char[] dists, int llSize) {
     int[] splitPoints = cookie.splitPoints;
     int[] splitSize = cookie.splitSize;

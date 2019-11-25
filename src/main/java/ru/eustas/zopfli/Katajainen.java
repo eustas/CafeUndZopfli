@@ -19,7 +19,7 @@ package ru.eustas.zopfli;
 
 import ru.eustas.zopfli.Cookie.Node;
 
-class Katajainen {
+final class Katajainen {
 
   /* Collection of utilities / should not be instantiated. */
   Katajainen() {}

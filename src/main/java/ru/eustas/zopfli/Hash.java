@@ -17,29 +17,34 @@ Author: eustas.ru@gmail.com (Eugene Klyuchnikov)
 
 package ru.eustas.zopfli;
 
-class Hash {
+final class Hash {
 
-  // HASH_SHIFT = 5;
-  // HASH_MASK = 32767;
+  private static final int WINDOW_SIZE = Deflate.WINDOW_SIZE;
+  private static final int WINDOW_MASK = Deflate.WINDOW_MASK;
 
-  private static final int[] seq = new int[0x8000];
+  /* TODO(eustas): could/should it be different than WINDOW_SIZE? */
+  private static final int HASH_SIZE = 0x8000;
+  private static final int HASH_MASK = 0x7FFF;
+  private static final int HASH_SHIFT = 5;
+
+  private static final char[] seq = new char[WINDOW_SIZE];
 
   static {
-    int[] seq = Hash.seq;
-    for (int i = 0, l = 0x8000; i < l; ++i) {
-      seq[i] = i;
+    char[] seq = Hash.seq;
+    for (int i = 0; i < WINDOW_SIZE; ++i) {
+      seq[i] = (char) i;
     }
   }
 
-  final int[] head = new int[0x10000];
-  final int[] prev = new int[0x8000];
-  private final int[] hashVal = new int[0x8000];
-  final int[] same = new int[0x8000];
+  final int[] head = new int[HASH_SIZE];
+  final char[] prev = new char[WINDOW_SIZE];
+  private final int[] hashVal = new int[WINDOW_SIZE];
+  final int[] same = new int[WINDOW_SIZE];
   int val;
 
-  private final int[] head2 = new int[0x10000];
-  final int[] prev2 = new int[0x8000];
-  final int[] hashVal2 = new int[0x8000];
+  private final int[] head2 = new int[HASH_SIZE];
+  final char[] prev2 = new char[WINDOW_SIZE];
+  final int[] hashVal2 = new int[WINDOW_SIZE];
 
   Hash() {}
 
@@ -47,36 +52,37 @@ class Hash {
     int[] hashVal = this.hashVal;
     int[] head = this.head;
     int[] same = this.same;
-    int[] prev = this.prev;
+    char[] prev = this.prev;
     int[] hashVal2 = this.hashVal2;
     int[] head2 = this.head2;
-    int[] prev2 = this.prev2;
+    char[] prev2 = this.prev2;
 
-    System.arraycopy(Cookie.intMOnes, 0, head, 0, 0x10000);
-    System.arraycopy(Cookie.intMOnes, 0, hashVal, 0, 0x8000);
-    System.arraycopy(Cookie.intZeroes, 0, same, 0, 0x8000);
-    System.arraycopy(seq, 0, prev, 0, 0x8000);
+    System.arraycopy(Cookie.intMOnes, 0, head, 0, HASH_SIZE);
+    System.arraycopy(Cookie.intMOnes, 0, hashVal, 0, WINDOW_SIZE);
+    System.arraycopy(Cookie.intZeroes, 0, same, 0, WINDOW_SIZE);
+    System.arraycopy(seq, 0, prev, 0, WINDOW_SIZE);
 
-    System.arraycopy(Cookie.intMOnes, 0, head2, 0, 0x10000);
-    System.arraycopy(Cookie.intMOnes, 0, hashVal2, 0, 0x8000);
-    System.arraycopy(seq, 0, prev2, 0, 0x8000);
+    System.arraycopy(Cookie.intMOnes, 0, head2, 0, HASH_SIZE);
+    System.arraycopy(Cookie.intMOnes, 0, hashVal2, 0, WINDOW_SIZE);
+    System.arraycopy(seq, 0, prev2, 0, WINDOW_SIZE);
 
     if ((windowStart + 1 >= input.length) || (from + 1 >= input.length)) {
       return;
     }
 
-    int val = (((input[windowStart] & 0xFF) << 5) ^ (input[windowStart + 1] & 0xFF)) & 0x7FFF;
+    int val =
+        (((input[windowStart] & 0xFF) << HASH_SHIFT) ^ (input[windowStart + 1] & 0xFF)) & HASH_MASK;
 
     for (int i = windowStart; i < from; ++i) {
-      int hPos = i & 0x7FFF;
-      val = ((val << 5) ^ (i + 2 < to ? input[i + 2] & 0xFF : 0)) & 0x7FFF;
+      int hPos = i & WINDOW_MASK;
+      val = ((val << HASH_SHIFT) ^ (i + 2 < to ? input[i + 2] & 0xFF : 0)) & HASH_MASK;
 
       hashVal[hPos] = val;
       int tmp = head[val];
-      prev[hPos] = tmp != -1 && hashVal[tmp] == val ? tmp : hPos;
+      prev[hPos] = (char) (((tmp != -1) && (hashVal[tmp] == val)) ? tmp : hPos);
       head[val] = hPos;
 
-      tmp = same[(i - 1) & 0x7FFF];
+      tmp = same[(i - 1) & WINDOW_MASK];
       if (tmp < 1) {
         tmp = 1;
       }
@@ -92,7 +98,7 @@ class Hash {
       tmp = ((tmp - 3) & 0xFF) ^ val;
       hashVal2[hPos] = tmp;
       int h = head2[tmp];
-      prev2[hPos] = h != -1 && hashVal2[h] == tmp ? h : hPos;
+      prev2[hPos] = (char) (((h != -1) && (hashVal2[h] == tmp)) ? h : hPos);
       head2[tmp] = hPos;
     }
     this.val = val;
@@ -104,17 +110,17 @@ class Hash {
 
   public void updateHash(byte[] input, int pos, int end) {
     // WINDOW_MASK
-    int hPos = pos & 0x7FFF;
+    int hPos = pos & WINDOW_MASK;
     int val = this.val;
 
-    val = ((val << 5) ^ (pos + 2 < end ? input[pos + 2] & 0xFF : 0)) & 0x7FFF;
+    val = ((val << HASH_SHIFT) ^ (pos + 2 < end ? input[pos + 2] & 0xFF : 0)) & HASH_MASK;
 
     hashVal[hPos] = val;
     int tmp = head[val];
-    prev[hPos] = (tmp != -1 && hashVal[tmp] == val) ? tmp : hPos;
+    prev[hPos] = (char) (((tmp != -1) && (hashVal[tmp] == val)) ? tmp : hPos);
     head[val] = hPos;
 
-    tmp = same[(pos - 1) & 0x7FFF];
+    tmp = same[(pos - 1) & WINDOW_MASK];
     if (tmp < 1) {
       tmp = 1;
     }
@@ -130,7 +136,7 @@ class Hash {
     tmp = ((tmp - 3) & 0xFF) ^ val;
     hashVal2[hPos] = tmp;
     int h = head2[tmp];
-    prev2[hPos] = h != -1 && hashVal2[h] == tmp ? h : hPos;
+    prev2[hPos] = (char) (((h != -1) && (hashVal2[h] == tmp)) ? h : hPos);
     head2[tmp] = hPos;
 
     this.val = val;

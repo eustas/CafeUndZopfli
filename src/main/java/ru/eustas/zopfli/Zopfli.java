@@ -17,12 +17,13 @@ Author: eustas.ru@gmail.com (Eugene Klyuchnikov)
 
 package ru.eustas.zopfli;
 
+import java.io.IOException;
 import java.io.OutputStream;
 
 /**
  * Zopfli compression and output framing facade.
  */
-public class Zopfli {
+public final class Zopfli {
 
   /**
    * Abstract checksum calculator; tracks input length.
@@ -31,7 +32,7 @@ public class Zopfli {
     private int totalLength;
 
     void update(byte[] input, int from, int length) {
-      // TODO(user): check overflow.
+      // TODO(eustas): check overflow.
       totalLength += length;
     }
 
@@ -47,7 +48,7 @@ public class Zopfli {
   /**
    * Calculates the CRC (with 0x04C11DB7 polynomial) checksum of the data.
    */
-  static class GzipChecksum extends Checksum {
+  static final class GzipChecksum extends Checksum {
 
     private static final int[] table = makeTable();
 
@@ -90,7 +91,7 @@ public class Zopfli {
   /**
    * Calculates the adler32 checksum of the data.
    */
-  static class ZlibChecksum extends Checksum {
+  static final class ZlibChecksum extends Checksum {
     private int lo = 1;
     private int hi = 0;
 
@@ -121,30 +122,32 @@ public class Zopfli {
 
   private final Cookie cookie;
 
-  public synchronized void compress(Options options, byte[] input, OutputStream output) {
-    BitWriter bitWriter = new BitWriter(output);
-    Options.OutputFormat format = options.outputType;
+  public synchronized void compress(Options options, byte[] input, OutputStream output)
+      throws IOException {
+    try {
+      BitWriter bitWriter = new BitWriter(output);
+      Options.OutputFormat format = options.outputType;
 
-    Checksum digest = createDigest(format);
-    writePrologue(format, bitWriter);
+      Checksum digest = createDigest(format);
+      writePrologue(format, bitWriter);
 
-    if (input.length == 0) {
-      writeEmptyFinalBlock(bitWriter);
-    } else {
-      int i = 0;
-      while (i < input.length) {
-        int j = Math.min(i + cookie.masterBlockSize, input.length);
-        boolean isFinal = (j == input.length);
-        Deflate.deflatePart(cookie, options, input, i, j, isFinal, bitWriter);
-        i = j;
+      if (input.length == 0) {
+        writeEmptyBlock(bitWriter, true);
+      } else {
+        int i = 0;
+        while (i < input.length) {
+          int j = Math.min(i + cookie.masterBlockSize, input.length);
+          boolean isFinal = (j == input.length);
+          Deflate.deflatePart(cookie, options, input, i, j, isFinal, bitWriter);
+          i = j;
+        }
       }
+
+      digest.update(input, 0, input.length);
+      writeEpilogue(format, bitWriter, digest);
+    } catch (ZopfliRuntimeException ex) {
+      throw new IOException(ex);
     }
-    bitWriter.jumpToByteBoundary();
-
-    digest.update(input, 0, input.length);
-    writeEpilogue(format, bitWriter, digest);
-
-    bitWriter.flush();
   }
 
   static Checksum createDigest(Options.OutputFormat format) {
@@ -157,64 +160,80 @@ public class Zopfli {
 
       case DEFLATE:
         return new Checksum();
+    }
+    throw new IllegalArgumentException();  // COV_NF_LINE
+  }
 
-      default:
-        throw new IllegalArgumentException("Unexpected format: " + format);
+  static void writePrologue(Options.OutputFormat format, BitWriter output) throws IOException {
+    try {
+      switch (format) {
+        case GZIP:
+          output.addBits(0x8B1F, 16);
+          output.addBits(0x0008, 16);
+          output.addBits(0x0000, 16);
+          output.addBits(0x0000, 16);
+          output.addBits(0x0302, 16);
+          return;
+
+        case ZLIB:
+          output.addBits(0xDA78, 16);
+          return;
+
+        case DEFLATE:
+          return;
+
+        default:
+          throw new IllegalArgumentException();  // COV_NF_LINE
+      }
+    } catch (ZopfliRuntimeException ex) {
+      throw new IOException(ex);
     }
   }
 
-  static void writePrologue(Options.OutputFormat format, BitWriter output) {
-    switch (format) {
-      case GZIP:
-        output.addBits(0x8B1F, 16);
-        output.addBits(0x0008, 16);
-        output.addBits(0x0000, 16);
-        output.addBits(0x0000, 16);
-        output.addBits(0x0302, 16);
-        return;
+  /**
+   * Pads output to the byte boundary, writes format-specific epilogue and flushes the output.
+   */
+  static void writeEpilogue(Options.OutputFormat format, BitWriter output, Checksum digest)
+      throws IOException {
+    try {
+      output.jumpToByteBoundary();
+      int checksum = digest.checksum();
+      int dataLength = digest.size();
+      switch (format) {
+        case GZIP:
+          output.addBits(checksum & 0xFFFF, 16);
+          output.addBits((checksum >> 16) & 0xFFFF, 16);
+          output.addBits(dataLength & 0xFFFF, 16);
+          output.addBits((dataLength >> 16) & 0xFFFF, 16);
+          break;
 
-      case ZLIB:
-        output.addBits(0x1E78, 16);
-        return;
+        case ZLIB:
+          output.addBits((checksum >> 24) & 0xFF, 8);
+          output.addBits((checksum >> 16) & 0xFF, 8);
+          output.addBits((checksum >> 8) & 0xFF, 8);
+          output.addBits(checksum & 0xFF, 8);
+          break;
 
-      case DEFLATE:
-        return;
+        case DEFLATE:
+          break;
 
-      default:
-        throw new IllegalArgumentException("Unexpected format: " + format);
+        default:
+          throw new IllegalArgumentException();  // COV_NF_LINE
+      }
+      output.flush();
+    } catch (ZopfliRuntimeException ex) {
+      throw new IOException(ex);
     }
   }
 
-  static void writeEpilogue(Options.OutputFormat format, BitWriter output, Checksum digest) {
-    int checksum = digest.checksum();
-    int dataLength = digest.size();
-    switch (format) {
-      case GZIP:
-        output.addBits(checksum & 0xFFFF, 16);
-        output.addBits((checksum >> 16) & 0xFFFF, 16);
-        output.addBits(dataLength & 0xFFFF, 16);
-        output.addBits((dataLength >> 16) & 0xFFFF, 16);
-        return;
-
-      case ZLIB:
-        output.addBits((checksum >> 24) & 0xFF, 8);
-        output.addBits((checksum >> 16) & 0xFF, 8);
-        output.addBits((checksum >> 8) & 0xFF, 8);
-        output.addBits(checksum & 0xFF, 8);
-        return;
-
-      case DEFLATE:
-        return;
-
-      default:
-        throw new IllegalArgumentException("Unexpected format: " + format);
+  static void writeEmptyBlock(BitWriter output, boolean isLast) throws IOException {
+    try {
+      output.addBits(isLast ? 1 : 0, 1);
+      output.addBits(1, 2);  /* BTYPE = fixed */
+      output.addBits(0, 7);  /* 256 == end-of-block */
+    } catch (ZopfliRuntimeException ex) {
+      throw new IOException(ex);
     }
-  }
-
-  static void writeEmptyFinalBlock(BitWriter output) {
-    output.addBits(1, 1);  /* BFINAL = true */
-    output.addBits(1, 2);  /* BTYPE = fixed */
-    output.addBits(0, 7);  /* 256 == end-of-block */
   }
 
   public Zopfli(int masterBlockSize) {

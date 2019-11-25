@@ -20,7 +20,7 @@ package ru.eustas.zopfli;
 /**
  * Zopfli engine configuration.
  */
-public class Options {
+public final class Options {
 
   /**
    * Block splitting strategy.

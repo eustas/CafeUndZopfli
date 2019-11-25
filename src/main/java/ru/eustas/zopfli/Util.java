@@ -17,7 +17,7 @@ Author: eustas.ru@gmail.com (Eugene Klyuchnikov)
 
 package ru.eustas.zopfli;
 
-class Util {
+final class Util {
 
   /* Collection of utilities / should not be instantiated. */
   Util() {}

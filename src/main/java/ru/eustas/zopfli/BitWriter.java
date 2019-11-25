@@ -23,16 +23,17 @@ import java.io.OutputStream;
 /**
  * Wrapper/buffer that accumulates bits before sending them to destination.
  */
-public class BitWriter {
+final class BitWriter {
 
-  private static final int PAGE_SIZE = 4096;
-
-  final byte[] data = new byte[PAGE_SIZE + 1];
+  /* Those members are not private for testing purposes. */
+  static final int PAGE_SIZE = 4096;
   int offset;
+
+  private final byte[] data = new byte[PAGE_SIZE + 1];
   private int bitOffset;
   private int accumulator;
 
-  OutputStream output;
+  private final OutputStream output;
 
   BitWriter(OutputStream output) {
     this.output = output;
@@ -72,7 +73,11 @@ public class BitWriter {
       accumulator >>= 8;
     }
     if (offset >= PAGE_SIZE) {
-      flush();
+      try {
+        flush();
+      } catch (IOException ex) {
+        throw new ZopfliRuntimeException("Failed to push output", ex);
+      }
     }
   }
 
@@ -80,14 +85,14 @@ public class BitWriter {
    * Writes whole number of accumulated bytes to output.
    *
    * Note: up to 7 bits might remain in accumulator.
+   *
+   * Unlike other methods, this one does not wrap IOException.
+   *
+   * This method is not responsible for flushing the underlying stream.
    */
-  void flush() {
+  void flush() throws IOException {
     int slice = offset > PAGE_SIZE ? PAGE_SIZE : offset;
-    try {
-      output.write(data, 0, slice);
-    } catch (IOException ex) {
-      throw new ZopfliRuntimeException("Failed to push output", ex);
-    }
+    output.write(data, 0, slice);
     offset -= slice;
     data[0] = data[PAGE_SIZE];
   }

@@ -21,8 +21,8 @@ import ru.eustas.zopfli.Options.BlockSplitting;
 import ru.eustas.zopfli.Options.OutputFormat;
 
 import java.io.ByteArrayOutputStream;
+import java.io.Closeable;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -89,7 +89,12 @@ class Main {
       } else {
         outFileName = fileName + ".deflate";
       }
-      compressFile(compressor, options, fileName, outFileName, buffer);
+      try {
+        compressFile(compressor, options, fileName, outFileName, buffer);
+      } catch (IOException ex) {
+        ex.printStackTrace();
+        return;
+      }
     }
 
     if (fileName == null) {
@@ -99,30 +104,26 @@ class Main {
     }
   }
 
-  private static byte[] readFile(String fileName, byte[] buffer) {
+  private static void silentlyClose(Closeable stream) {
     try {
-      FileInputStream inputStream = new FileInputStream(fileName);
-      try {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream(inputStream.available());
-        baos.reset();
-        int len;
-        while ((len = inputStream.read(buffer)) != -1) {
-          baos.write(buffer, 0, len);
-        }
-        return baos.toByteArray();
-      } catch (IOException e) {
-        System.err.println("Can't read file: " + fileName);
-        return null;
-      } finally {
-        try {
-          inputStream.close();
-        } catch (IOException e) {
-          // We don't care.
-        }
+      stream.close();
+    } catch (IOException ex) {
+      // We don't care.
+    }
+  }
+
+  private static byte[] readFile(String fileName, byte[] buffer) throws IOException {
+    FileInputStream inputStream = new FileInputStream(fileName);
+    try {
+      ByteArrayOutputStream baos = new ByteArrayOutputStream(inputStream.available());
+      baos.reset();
+      int len;
+      while ((len = inputStream.read(buffer)) != -1) {
+        baos.write(buffer, 0, len);
       }
-    } catch (FileNotFoundException e) {
-      System.err.println("Invalid input file: " + fileName);
-      return null;
+      return baos.toByteArray();
+    } finally {
+      silentlyClose(inputStream);
     }
   }
 
@@ -134,20 +135,15 @@ class Main {
    * @param outFileName Output file name; {@code null} to output to stdout.
    */
   private static void compressFile(Zopfli compressor, Options options,
-      String fileName, String outFileName, byte[] buffer) {
+      String fileName, String outFileName, byte[] buffer) throws IOException {
     byte[] input = readFile(fileName, buffer);
     if (input == null) {
       return;
     }
-    OutputStream output = null;
 
+    OutputStream output;
     if (outFileName != null) {
-      try {
-        output = new FileOutputStream(outFileName);
-      } catch (FileNotFoundException e) {
-        System.err.println("Invalid output file: " + outFileName);
-        return;
-      }
+      output = new FileOutputStream(outFileName);
     } else {
       output = System.out;
     }
@@ -156,11 +152,7 @@ class Main {
       compressor.compress(options, input, output);
     } finally {
       if (outFileName != null) {
-        try {
-          output.close();
-        } catch (IOException e) {
-           // We don't care.
-        }
+        silentlyClose(output);
       }
     }
   }

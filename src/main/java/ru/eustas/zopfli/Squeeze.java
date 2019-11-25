@@ -17,7 +17,10 @@ Author: eustas.ru@gmail.com (Eugene Klyuchnikov)
 
 package ru.eustas.zopfli;
 
-class Squeeze {
+final class Squeeze {
+
+  private static final int WINDOW_SIZE = Deflate.WINDOW_SIZE;
+  private static final int WINDOW_MASK = Deflate.WINDOW_MASK;
 
   /* Collection of utilities / should not be instantiated. */
   Squeeze() {}
@@ -81,7 +84,7 @@ class Squeeze {
       size -= las;
     } while (size != 0);
 
-    int windowStart = Math.max(from - 0x8000, 0);
+    int windowStart = Math.max(from - WINDOW_SIZE, 0);
     Hash h = cookie.h;
     h.init(input, windowStart, from, to);
     int pos = from;
@@ -125,11 +128,9 @@ class Squeeze {
   private static void bestLengths(Cookie cookie, LongestMatchCache lmc, int blockStart,
       byte[] input, int from, int to, long minCost, SymbolStats stats,
       char[] lengthArray, long[] costs) {
-    //# WINDOW_SIZE = 0x8000
-    //# WINDOW_MASK = 0x7FFF
     //# MAX_MATCH = 258
 
-    int windowStart = Math.max(from - 0x8000, 0);
+    int windowStart = Math.max(from - WINDOW_SIZE, 0);
     Hash h = cookie.h;
     h.init(input, windowStart, from, to);
     Cookie.fillCostMax(costs, to - from + 1);
@@ -152,8 +153,8 @@ class Squeeze {
     while (i < to) {
       h.updateHash(input, i, to);
 
-      if (same[i & 0x7FFF] > 516 && i > from + 259 && i + 517 < to
-          && same[(i - 258) & 0x7FFF] > 258) {
+      if (same[i & WINDOW_MASK] > 516 && i > from + 259 && i + 517 < to
+          && same[(i - 258) & WINDOW_MASK] > 258) {
         for (int k = 0; k < 258; ++k) {
           costs[j + 258] = costs[j] + stepCost;
           lengthArray[j + 258] = 258;
@@ -173,11 +174,10 @@ class Squeeze {
           lengthArray[j + 1] = 1;
         }
       }
-      int lenValue = cookie.lenVal;
+      // TODO(eustas): prove that we don't need clamping.
+      int lenValue = Math.min(cookie.lenVal, to - i);
       long baseCost = minCost + costsJ;
-      if (lenValue > to - i) {
-        lenValue = to - i;
-      }
+
       int jpk = j + 3;
       for (char k = 3; k <= lenValue; k++, jpk++) {
         if (costs[jpk] > baseCost) {
@@ -196,7 +196,7 @@ class Squeeze {
 
   static void bestFixedLengths(Cookie cookie, LongestMatchCache lmc, byte[] input, int from, int to,
       char[] lengthArray, long[] costs) {
-    int windowStart = Math.max(from - 0x8000, 0);
+    int windowStart = Math.max(from - WINDOW_SIZE, 0);
     Hash h = cookie.h;
     h.init(input, windowStart, from, to);
     Cookie.fillCostMax(costs, to - from + 1);
@@ -208,10 +208,10 @@ class Squeeze {
       int j = i - from;
       h.updateHash(input, i, to);
 
-      if (h.same[i & 0x7FFF] > 258 * 2
+      if (h.same[i & WINDOW_MASK] > 258 * 2
           && i > from + 258 + 1
           && i + 258 * 2 + 1 < to
-          && h.same[(i - 258) & 0x7FFF]
+          && h.same[(i - 258) & WINDOW_MASK]
           > 258) {
         long symbolCost = fixedCost(258, 1);
         for (int k = 0; k < 258; k++) {

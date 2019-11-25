@@ -11,10 +11,6 @@ package ru.eustas.zopfli;
  */
 class ZopfliRuntimeException extends RuntimeException {
 
-  ZopfliRuntimeException(String message) {
-    super(message);
-  }
-
   ZopfliRuntimeException(String message, Throwable cause) {
     super(message, cause);
   }

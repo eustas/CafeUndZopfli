@@ -17,7 +17,7 @@ Author: eustas.ru@gmail.com (Eugene Klyuchnikov)
 
 package ru.eustas.zopfli;
 
-class Cookie {
+final class Cookie {
 
   static class Node {
     int weight;

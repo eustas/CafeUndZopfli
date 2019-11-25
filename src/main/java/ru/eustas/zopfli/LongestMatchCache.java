@@ -17,7 +17,7 @@ Author: eustas.ru@gmail.com (Eugene Klyuchnikov)
 
 package ru.eustas.zopfli;
 
-class LongestMatchCache {
+final class LongestMatchCache {
 
   private static final int CACHE_LENGTH = 8;
 

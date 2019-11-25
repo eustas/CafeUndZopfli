@@ -75,10 +75,8 @@ final class SymbolStats {
       if (litLens[i] == 0) {
         lLiterals[i] = (long) log2sum;
       } else {
-        lLiterals[i] = (long) (log2sum - Math.log(litLens[i]) * INV_LOG_2);
-      }
-      if (lLiterals[i] < 0) {
-        lLiterals[i] = 0;
+        // TODO(eustas): prove that we don't need clamping.
+        lLiterals[i] = Math.max((long) (log2sum - Math.log(litLens[i]) * INV_LOG_2), 0L);
       }
     }
     long[] lLengths = this.lLengths;
@@ -101,10 +99,8 @@ final class SymbolStats {
       if (dists[i] == 0) {
         dSymbols[i] = (long) log2sum;
       } else {
-        dSymbols[i] = (long) (log2sum - Math.log(dists[i]) * INV_LOG_2);
-      }
-      if (dSymbols[i] < 0) {
-        dSymbols[i] = 0;
+        // TODO(eustas): prove that we don't need clamping.
+        dSymbols[i] = Math.max((long) (log2sum - Math.log(dists[i]) * INV_LOG_2), 0L);
       }
     }
     for (int i = 4; i < 30; ++i) {

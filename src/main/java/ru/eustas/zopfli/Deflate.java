@@ -17,7 +17,7 @@ Author: eustas.ru@gmail.com (Eugene Klyuchnikov)
 
 package ru.eustas.zopfli;
 
-class Deflate {
+final class Deflate {
 
   /* Collection of utilities / should not be instantiated. */
   Deflate() {}
@@ -28,13 +28,14 @@ class Deflate {
   }
 
   /* Bit-reversed 5-bit numbers. */
-  private static final int[] RESVERSED_BITS = {
+  private static final int[] REVERSED_BITS = {
     0, 16, 8, 24, 4, 20, 12, 28, 2, 18, 10, 26, 6, 22, 14, 30,
     1, 17, 9, 25, 5, 21, 13, 29, 3, 19, 11, 27, 7, 23, 15, 31
   };
 
-  // final static int WINDOW_SIZE = 0x8000;
-  // final static int WINDOW_MASK = 0x7FFF;
+  static final int WINDOW_SIZE = 0x8000;
+  static final int WINDOW_MASK = 0x7FFF;
+
   // final static int MAX_MATCH = 258;
   // final static int MIN_MATCH = 3;
   // final static int MAX_CHAIN_HITS = 8192; // Should be less than WINDOW_SIZE
@@ -58,9 +59,9 @@ class Deflate {
   }
 
   private static int bitReverse(int value, int length) {
-    int low = RESVERSED_BITS[value & 0x1F];
-    int mid = RESVERSED_BITS[(value >> 5) & 0x1F];
-    int hi = RESVERSED_BITS[(value >> 10) & 0x1F];
+    int low = REVERSED_BITS[value & 0x1F];
+    int mid = REVERSED_BITS[(value >> 5) & 0x1F];
+    int hi = REVERSED_BITS[(value >> 10) & 0x1F];
     int reversed = (low << 10) | (mid << 5) | hi;
     return (length == 15) ? reversed : (reversed >> (15 - length));
   }
@@ -68,7 +69,7 @@ class Deflate {
   public static void greedy(Cookie cookie, LongestMatchCache lmc, byte[] input, int from,
       int to, LzStore store) {
     Hash h = cookie.h;
-    h.init(input, Math.max(from - 0x8000, 0), from, to);
+    h.init(input, Math.max(from - WINDOW_SIZE, 0), from, to);
     int prevLength = 0;
     int prevMatch = 0;
     char[] dummySubLen = cookie.c259a;
@@ -122,8 +123,6 @@ class Deflate {
 
   static void findLongestMatch(Cookie cookie, LongestMatchCache lmc, int blockStart, Hash h,
       byte[] array, int pos, int size, int limit, char[] subLen) {
-    //# WINDOW_SIZE = 0x8000
-    //# WINDOW_MASK = 0x7FFF
     //# MIN_MATCH = 3
     //# MAX_MATCH = 258
 
@@ -135,10 +134,8 @@ class Deflate {
           || lmcLength[offset] <= limit
           || (subLen != null && lmc.maxCachedSubLen(offset) >= limit))) {
       if (subLen == null || lmcLength[offset] <= lmc.maxCachedSubLen(offset)) {
-        cookie.lenVal = lmcLength[offset];
-        if (cookie.lenVal > limit) {
-          cookie.lenVal = limit;
-        }
+        // TODO(eustas): prove that we don't need clamping.
+        cookie.lenVal = Math.min(lmcLength[offset], limit);
         if (subLen != null) {
           lmc.cacheToSubLen(offset, cookie.lenVal, subLen);
           cookie.distVal = subLen[cookie.lenVal];
@@ -164,24 +161,24 @@ class Deflate {
     int bestLength = 1;
     int arrayEnd = pos + limit;
     int chainCounter = 8192;
-    int[] hPrev = h.prev;
-    int[] hPrev2 = h.prev2;
+    char[] hPrev = h.prev;
+    char[] hPrev2 = h.prev2;
     int pp = h.head[h.val];
     int threshold = h.same[pp];
     int[] hashVal2 = h.hashVal2;
     int marker = hashVal2[pp];
     int p = hPrev[pp];
     pp -= p;
-    int dist = pp > 0 ? pp : pp + 0x8000;
+    int dist = pp > 0 ? pp : pp + WINDOW_SIZE;
 
-    while (dist < 0x8000 && chainCounter > 0) {
+    while (dist < WINDOW_SIZE && chainCounter > 0) {
       int scan = pos;
       int match = pos - dist;
 
       if (array[scan + bestLength] == array[match + bestLength]) {
-        int same0 = h.same[pos & 0x7FFF];
+        int same0 = h.same[pos & WINDOW_MASK];
         if (same0 > 2 && array[scan] == array[match]) {
-          int same1 = h.same[match & 0x7FFF];
+          int same1 = h.same[match & WINDOW_MASK];
           int same = same0 < same1 ? same0 : same1;
           if (same > limit) {
             same = limit;
@@ -219,7 +216,7 @@ class Deflate {
         break;
       }
       pp -= p;
-      dist += pp > 0 ? pp : 0x8000 + pp;
+      dist += pp > 0 ? pp : WINDOW_SIZE + pp;
 
       --chainCounter;
     }
